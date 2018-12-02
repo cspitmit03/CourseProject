@@ -1,0 +1,156 @@
+---
+title: "Final Project"
+author: "Cesar L. Espitia"
+date: "12/9/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Statement of the Problem or Need
+
+Education is a very important topic in any society.    One of the unique aspects of the US education system is the levels of diversity in our public-school systems.    Over the past decade, research at various levels in the public and private sector have determined that diversity is important to success and it all starts with a person’s education.  
+
+The goal of this project is to determine the effects of a school’s student demographics on SAT scores.    This will be accomplished by using two datasets:
+  •2011 -2016 Demographic Snapshot
+  •2012 SAT Results
+
+Both datasets come from the NYC OpenData portal (data.cityofnewyork.us/).  
+
+
+### Importing the Data
+
+```{r import}
+library(e1071)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(VIM)
+library(stringr)
+library(knitr)
+## Load demographic data (set 1)
+demosnapshot = read.csv("2011_-_2016_Demographic_Snapshot.csv", header = TRUE)
+
+names <- colnames(demosnapshot)
+
+names <- sub(".1","Perc",names)
+
+demosnapshot <- setNames(demosnapshot, names)
+
+#convert all columns to numeric
+for (i in 4:38)
+{
+  demosnapshot[,i] <- gsub("%", "", demosnapshot[,i])
+  demosnapshot[,i] <- as.numeric(as.character(demosnapshot[,i]))
+}
+
+
+#lapply(demosnapshot, class)
+
+## Load SAT Scores 2012
+SATonly = read.csv("2012_SAT_Results.csv", header = TRUE)
+
+#lapply(SATonly, class)
+
+## Add total SAT score column for linear regression
+
+SATonly$Math <- as.numeric(as.character(SATonly$SAT.Math.Avg..Score))
+SATonly$Writing <- as.numeric(as.character(SATonly$SAT.Writing.Avg..Score))
+SATonly$Reading <- as.numeric(as.character(SATonly$SAT.Critical.Reading.Avg..Score))
+
+SATonly$SATTotal <- SATonly$Math + SATonly$Writing + SATonly$Reading
+
+SATonly <- SATonly[ , -which(names(SATonly) %in% c("SAT.Math.Avg..Score","SAT.Writing.Avg..Score","SAT.Critical.Reading.Avg..Score"))]
+
+## The assumption is that 2012 corresponds to the school year 2012-13 in demosnapshot
+SATonly$Year <- '2012-13'
+
+## total test takers has s to signify no one
+
+SATonly$Num.of.SAT.Test.Takers[
+SATonly$Num.of.SAT.Test.Takers == "s"] <- "0"
+
+SATonly[,3] <- as.numeric(as.character(SATonly[,3]))
+
+df <- merge(demosnapshot,SATonly,by=c("DBN","Year"), all=T)
+df <- df[ , -which(names(df) %in% c("SCHOOL.NAME"))]
+
+```
+
+
+### Exploratory Analysis
+
+```{r exploratory}
+df2012 <- merge(demosnapshot,SATonly,by=c("DBN","Year"))
+  
+df2012 %>%
+  keep(is.numeric) %>%                     # Keep only numeric columns
+  gather() %>%                             # Convert to key-value pairs
+  ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +   # In separate panels
+    geom_density()  
+
+options(scipen = 999)
+missing_plot <- VIM::aggr(df2012,  
+                      numbers = T, 
+                      sortVars = T,
+                      col = c("lightgreen", "darkred", "orange"),
+                      labels=names(df2012), 
+                      ylab=c("Missing Value Counts"
+                             , "Pattern"))
+
+summary(missing_plot)
+
+missing_plot$missings %>% 
+  mutate(
+    pct_missing = Count / nrow(df2012)
+    ) %>% 
+  arrange(-pct_missing) %>% 
+  filter(pct_missing > 0) %>% 
+  kable(digits = 3, row.names = T, caption = "Variables Missing Values")  
+
+## There are 5 variables that have missing data.  This equates to 10% of the data and is acceptable.  
+```
+
+
+### Linear Regression
+
+```{r linear}
+# Preparing
+set.seed(68)
+
+df2 <- df2012[ , -which(names(df2012) %in% c("School.Name","SCHOOL.NAME"))]
+
+df2 <- select_if(df2, is.numeric)
+
+df2$Num.of.SAT.Test.Takers[is.na(df2$Num.of.SAT.Test.Takers)] <- mean(df2$Num.of.SAT.Test.Takers, na.rm=TRUE)
+df2$Math[is.na(df2$Math)] <- mean(df2$Math, na.rm=TRUE)
+df2$Writing[is.na(df2$Writing)] <- mean(df2$Writing, na.rm=TRUE)
+df2$Reading[is.na(df2$Reading)] <- mean(df2$Reading, na.rm=TRUE)
+df2$SATTotal[is.na(df2$SATTotal)] <- mean(df2$SATTotal, na.rm=TRUE)
+
+train<-sample_frac(df2, 0.7)
+sid<-as.numeric(rownames(train)) # because rownames() returns character
+test<-df2[-sid,]
+
+## Load SAT Scores 2012
+#excluding math, writing, reading as these values are irrevelant.  
+model1 <- lm(SATTotal~ .  - Math - Writing - Reading,data=train)
+
+summary(model1)
+
+test$pred1 <- predict(model1, type="response", test)
+
+par(mfrow=c(1,2))
+hist(test$SATTotal)
+hist(test$pred1)
+
+par(mfrow=c(1,2))
+boxplot(test$SATTotal, data=test)
+boxplot(test$pred1, data=test)
+
+
+```
+
+
