@@ -136,7 +136,7 @@ test<-df2[-sid,]
 
 ## Load SAT Scores 2012
 #excluding math, writing, reading as these values are irrevelant.  
-model1 <- lm(SATTotal~ .  - Math - Writing - Reading,data=train)
+model1 <- lm(SATTotal~ .  - Math - Writing - Reading, data=train)
 
 summary(model1)
 
