@@ -29,17 +29,23 @@ library(ggplot2)
 library(VIM)
 library(stringr)
 library(knitr)
+library(corrplot)
+
 ## Load demographic data (set 1)
 demosnapshot = read.csv("2011_-_2016_Demographic_Snapshot.csv", header = TRUE)
 
 names <- colnames(demosnapshot)
-
-names <- sub(".1","Perc",names)
+names <- sub("Grade.","Grade",names)
+names <- sub("X..","",names)
+#names <- sub("*.1","Perc",names)
 
 demosnapshot <- setNames(demosnapshot, names)
 
+a <-demosnapshot %>% dplyr:: select(ends_with(".1"))
+b <- which(colnames(demosnapshot) %in% colnames(a))
+
 #convert all columns to numeric
-for (i in 4:38)
+for (i in b)
 {
   demosnapshot[,i] <- gsub("%", "", demosnapshot[,i])
   demosnapshot[,i] <- as.numeric(as.character(demosnapshot[,i]))
@@ -75,6 +81,8 @@ SATonly[,3] <- as.numeric(as.character(SATonly[,3]))
 
 df <- merge(demosnapshot,SATonly,by=c("DBN","Year"), all=T)
 df <- df[ , -which(names(df) %in% c("SCHOOL.NAME"))]
+
+summary(df) %>% kable()
 
 ```
 
@@ -124,6 +132,13 @@ df2 <- df2012[ , -which(names(df2012) %in% c("School.Name","SCHOOL.NAME"))]
 
 df2 <- select_if(df2, is.numeric)
 
+
+##collinearility is found and will be removed.  All counts will be removed and instead percentages will be kep.  
+
+corrplot(cor(df2), method="square", tl.cex = 0.8)
+
+df2 <- df2[, !colnames(df2) %in% c("Female","Male","Asian","Black","Hispanic","Other","White","Students.with.Disabilities","English.Language.Learners","Poverty","Grade4","Grade5","GradePK","GradeK","Grade1","Grade2","Grade3","Grade6","Grade7","Grade8")]
+
 df2$Num.of.SAT.Test.Takers[is.na(df2$Num.of.SAT.Test.Takers)] <- mean(df2$Num.of.SAT.Test.Takers, na.rm=TRUE)
 df2$Math[is.na(df2$Math)] <- mean(df2$Math, na.rm=TRUE)
 df2$Writing[is.na(df2$Writing)] <- mean(df2$Writing, na.rm=TRUE)
@@ -134,13 +149,18 @@ train<-sample_frac(df2, 0.7)
 sid<-as.numeric(rownames(train)) # because rownames() returns character
 test<-df2[-sid,]
 
+
+
 ## Load SAT Scores 2012
 #excluding math, writing, reading as these values are irrevelant.  
 model1 <- lm(SATTotal~ .  - Math - Writing - Reading, data=train)
+model1 <- glm(SATTotal~ .  - Math - Writing - Reading,data=train, family=gaussian())
+model1 <- glm(Num.of.SAT.Test.Takers ~ .  - Math - Writing - Reading -SATTotal,data=train, family=poisson())
 
 summary(model1)
 
 test$pred1 <- predict(model1, type="response", test)
+test <- test[test$pred1 >= 0, ]
 
 par(mfrow=c(1,2))
 hist(test$SATTotal)
@@ -150,6 +170,8 @@ par(mfrow=c(1,2))
 boxplot(test$SATTotal, data=test)
 boxplot(test$pred1, data=test)
 
+
+## 
 
 ```
 
