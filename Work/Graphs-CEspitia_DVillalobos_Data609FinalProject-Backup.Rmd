@@ -1,0 +1,460 @@
+---
+title: "Final Project"
+author:
+- Cesar L. Espitia
+- Duubar Villalobos Jimenez
+
+date: "December 09, 2018"
+output:
+  pdf_document:
+      highlight: tango
+      toc: true
+      toc_depth: 4
+      number_sections: false
+      df_print: kable
+      
+      
+  html_document:
+      df_print: paged
+      code_folding: hide
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+    toc: yes
+    df_print: paged
+subtitle: CUNY MSDS DATA 609
+fontsize: 10pt
+geometry: margin=1in
+always_allow_html: yes
+---
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, cache=FALSE, results='hide', message=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, cache=FALSE, results='hide', message=FALSE}
+# In this section we will include the needed libraries
+library(dplyr)
+library(stringr)
+library(data.table)
+
+```
+
+
+
+
+
+
+\newpage
+# INTRODUCTION
+
+## TITLE
+
+**Student demographic and enrollment data from the NYC Department of Education 2011 – 2016.**
+
+## ABSTRACT
+
+This is our final project for DATA609. The purpose of this project is to explore, analyze and model a real-world data set of our own interest using the regression modeling techniques learned in the course. The idea is to develop a problem statement and research question based on the data set that we have obtained from the Department of Education (DOE). We will perform state-of-the-art literature and research developments dealing with empirical studies, algorithms, or methodologies related to our problem.
+
+## DESCRIPTION
+
+Education is a very important topic in any society. One of the unique aspects of the US education system is the levels of diversity in our public-school systems. Over the past decade, research at various levels in the public and private sector have determined that diversity is important to success and it all starts with a person’s education.  
+
+## GOAL
+
+The goal of this project is to determine the effects of a school’s student demographics on SAT scores. This will be accomplished by using two datasets:
+
+    • 2011 - 2016 Demographic Snapshot
+    • 2012 SAT Results
+
+Both datasets come from the NYC OpenData portal (data.cityofnewyork.us/).  
+
+### Modeling using Multiple Linear Regression
+
+For this analysis, we propose to create a mathematical model to predict SAT scores based upon the school's demographics based on the 2012 data.  
+
+### Modeling using Graph Theory
+
+In this case, we will use the power of graphs in order to describe the relationships in between variables.
+
+\newpage
+# ANALYSIS
+
+In this section we will incorprate the results and findings from our study analysis.
+
+## ANALYSIS I: Modeling using Multiple Linear Regression
+
+Cesar's work goes here...
+
+
+
+
+
+
+
+
+
+
+## ANALYSIS II: Modeling with Difference Equations
+
+In this section, we will employ a powerful modeling technique in order to have an approximation of the 2016-17 School year by employing Difference Equations we could find valuable insights.
+
+
+```{r, echo=FALSE}
+
+# Need to read datasets
+url <- "https://raw.githubusercontent.com/cspitmit03/CourseProject/master/2011_-_2016_Demographic_Snapshot.csv"
+demosnapshot <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
+
+url <- "https://raw.githubusercontent.com/cspitmit03/CourseProject/master/2012_SAT_Results.csv"
+SAT <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
+SAT <- SAT[,-2]
+
+# Totals have s to signify no one
+SAT$Num.of.SAT.Test.Takers[SAT$Num.of.SAT.Test.Takers == "s"] <- NA
+SAT$SAT.Critical.Reading.Avg..Score[SAT$SAT.Critical.Reading.Avg..Score == "s"] <- NA
+SAT$SAT.Math.Avg..Score[SAT$SAT.Math.Avg..Score == "s"] <- NA
+SAT$SAT.Writing.Avg..Score[SAT$SAT.Writing.Avg..Score == "s"] <- NA
+
+# Need to convert to numeric
+SAT$Num.of.SAT.Test.Takers <- as.numeric(SAT$Num.of.SAT.Test.Takers)
+SAT$SAT.Critical.Reading.Avg..Score <- as.numeric(SAT$SAT.Critical.Reading.Avg..Score)
+SAT$SAT.Writing.Avg..Score <- as.numeric(SAT$SAT.Writing.Avg..Score)
+SAT$SAT.Math.Avg..Score <- as.numeric(SAT$SAT.Math.Avg..Score)
+
+# Calculating SAT Total
+SAT$SATTotal <- SAT$SAT.Critical.Reading.Avg..Score + SAT$SAT.Writing.Avg..Score + SAT$SAT.Math.Avg..Score
+
+## The assumption is that 2012 corresponds to the school year 2012-13 in demosnapshot
+SAT$Year <- '2012-13'
+
+# Need complete cases only
+SAT <- SAT[complete.cases(SAT),]
+demosnapshot <- demosnapshot[complete.cases(demosnapshot), ]
+```
+
+```{r}
+# Need to reduce data set of demsnapshot in order to employ percentages only
+demosnapshot <- demosnapshot %>% 
+                                select( "DBN", "School.Name", "Year", "Total.Enrollment",
+                                 "X..Female.1", "X..Male.1", "X..Asian.1",
+                                 "X..Black.1", "X..Hispanic.1", "X..Other.1",
+                                 "X..White.1", "X..Students.with.Disabilities.1", "X..English.Language.Learners.1",
+                                 "X..Poverty.1")
+
+```
+
+
+
+
+```{r, echo=FALSE}
+
+# Function that transform Factor variables to Numeric
+factor_to_numeric <- function(df){
+  
+  # Transform percentage to numeric.
+  for (i in 5:14){
+    df[,i] <- as.numeric(gsub("%", "", df[,i]))
+  }
+ 
+  return(df)
+}
+
+```
+
+```{r, echo=FALSE}
+
+# Need to transform from % to numeric
+demosnapshot <- factor_to_numeric(demosnapshot)
+ 
+```
+
+
+
+
+```{r}
+
+# Need to merge data in order to create data-set for linear model
+lm.data <- merge(demosnapshot, SAT, 
+                  by.x = c("DBN","Year"),
+                  by.y = c("DBN","Year"),
+                  all.y=TRUE)
+
+lm.data
+```
+
+```{r}
+
+# Complete cases of records to be used in order to create a linear model in order to predict the SAT score from Demographics
+lm.data <- lm.data[complete.cases(lm.data),]
+lm.data
+```
+
+
+
+```{r}
+# From above, we have two data sets.
+
+# -snapshot- to be used in order to obtain a model for 2016-17
+# -lm.data- to be used in order to creat a linear model to predict the SAT score from the demographics
+```
+
+```{r}
+# Defining data-set for linear model
+lm.data1 <- lm.data[4:18]
+
+# NEed to convert to numeric
+for (i in 1:15){
+  lm.data1[,i] <- as.numeric(lm.data1[,i])
+}
+```
+
+```{r}
+# 1) Creating linear model for SAT.Critical.Reading.Avg..Score
+Rglm.SAT_NULL <- glm(SAT.Critical.Reading.Avg..Score ~ 1 
+              - SAT.Math.Avg..Score - SAT.Writing.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Rglm.SAT_FULL <- glm(SAT.Critical.Reading.Avg..Score ~ . 
+              - SAT.Math.Avg..Score - SAT.Writing.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Rglm.SAT_STEP <- step(Rglm.SAT_NULL,
+                    scope = list(upper=Rglm.SAT_FULL),
+                    direction="both",
+                    test="Chisq",
+                    data=lm.data1)
+
+summary(Rglm.SAT_STEP)
+
+# 2) Creating linear model for SAT.Writing.Avg..Score
+Wglm.SAT_NULL <- glm(SAT.Writing.Avg..Score ~ 1 
+              - SAT.Critical.Reading.Avg..Score - SAT.Math.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Wglm.SAT_FULL <- glm(SAT.Writing.Avg..Score ~ . 
+              - SAT.Critical.Reading.Avg..Score - SAT.Math.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Wglm.SAT_STEP <- step(Wglm.SAT_NULL,
+                    scope = list(upper=Wglm.SAT_FULL),
+                    direction="both",
+                    test="Chisq",
+                    data=lm.data1)
+
+summary(Wglm.SAT_STEP)
+
+
+# 3) Creating linear model for SAT.Math.Avg..Score
+Mglm.SAT_NULL <- glm(SAT.Math.Avg..Score ~ 1 
+              - SAT.Critical.Reading.Avg..Score - SAT.Writing.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Mglm.SAT_FULL <- glm(SAT.Math.Avg..Score ~ . 
+              - SAT.Critical.Reading.Avg..Score - SAT.Writing.Avg..Score - Num.of.SAT.Test.Takers,
+              family = "poisson", data = lm.data1)
+
+Mglm.SAT_STEP <- step(Mglm.SAT_NULL,
+                    scope = list(upper=Mglm.SAT_FULL),
+                    direction="both",
+                    test="Chisq",
+                    data=lm.data1)
+
+summary(Mglm.SAT_STEP)
+
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+par(mfrow=c(2,2))
+plot(Wglm.SAT_STEP)
+```
+
+
+
+ This is Duubar's Work
+
+```{r}
+# First let's get the number of years provided in the data for each school
+demosnapshot_nYears <- demosnapshot  %>% group_by(DBN) %>% summarise(n = n())
+demosnapshot_nYears
+```
+
+```{r}
+# Let's visualize it
+barplot(prop.table(table(demosnapshot_nYears$n)),
+        main = "Train Data-Set",
+        ylab = "Probability",
+        xlab = "Provided Years")
+```
+```{r}
+# Let's see the counts
+demosnapshot_nYears %>% group_by("nYears" = n) %>% summarize(count=n())
+```
+
+```{r}
+# Second let's focus on the schools that have 5 years of records in the data
+demosnapshot_5Years <- demosnapshot_nYears[demosnapshot_nYears$n == 5,]
+# Find duplicates
+#demosnapshot_5Years[duplicated(demosnapshot_5Years$DBN),]
+```
+
+```{r}
+demosnapshot_SAT <- merge(demosnapshot_5Years, SAT, 
+                  by.x = c("DBN"),
+                  by.y = c("DBN"),
+                  all.y=TRUE)
+
+demosnapshot_SAT <- demosnapshot_SAT[complete.cases(demosnapshot_SAT),]
+```
+
+
+```{r}
+snapshot_5n_SAT <- merge(demosnapshot, demosnapshot_SAT, 
+                  by.x = c("DBN"),
+                  by.y = c("DBN"),
+                  all.y=TRUE)
+
+# Need to discard extra columns
+snapshot_5n_SAT <- snapshot_5n_SAT[,1:14]
+```
+
+```{r}
+snapshot_5n_SAT %>% group_by("Year.x" = Year.x) %>% summarize(count=n())
+```
+
+```{r}
+# Need to create procedure for new predictions employing Difference Equations
+demosnapshot_MODEL <- data.frame( "DBN"= 0, "School.Name" = "Need", "Year" = 0, "Total.Enrollment" = 0,
+                                  "X..Female.1" = 0, "X..Male.1" = 0, "X..Asian.1" = 0, "X..Black.1" = 0,
+                                  "X..Hispanic.1" = 0, "X..Other.1" = 0, "X..White.1" = 0, 
+                                  "X..Students.with.Disabilities.1" = 0, "X..English.Language.Learners.1" = 0,  "X..Poverty.1" = 0  )
+
+# Need Schoo Name as character
+demosnapshot_MODEL$School.Name <- as.character(demosnapshot_MODEL$School.Name)
+# Need to define n
+n <- c(0,1,2,3,4)
+# Initializing b and i
+b <- 0
+i <- 1
+
+```
+
+
+
+```{r}
+
+for (DBN in unique(snapshot_5n_SAT$DBN)){
+
+  # Need to run columns to the right
+  for (c in 4:14){
+
+      # Extracting pn from each column
+      pn <- snapshot_5n_SAT[snapshot_5n_SAT$DBN == DBN, c]
+      df <- data.frame(n,pn)
+      
+      # Need to calculate Delta_n
+      df <- data.table(df)
+      df[ , Delta := shift(pn, type ="lead") - pn]
+      
+      # Calculating slope k employing linear model in r with intersection
+      lm_model <- lm(Delta ~ n , data = df)
+      
+      # Extracting slope coeficient from linear model
+      k <- lm_model$coefficients[[2]]
+      b <- lm_model$coefficients[[1]]
+
+      # Need to sort and take top 2 highest values
+      #top2 <- sort(pn)
+      #M <- (top2[4] + top2[5])/2
+        
+      # Need to find new k
+      #df$Delta[5] <- 0
+      #k1 <- df$Delta / ((M - df$pn) * df$pn)
+      #k1 <- sort(k[1:4])
+      #k1 <- k1[4]      
+      
+      # Need to run each row in the column
+      df <- data.frame(n = df$n, Delta = df$Delta, predict = df$pn[1], pn = pn)
+      pred <- round(pn + k * n + b, 1)
+      # Need to calculate new modeled predictions
+      for (r in 2:6){
+        df[r,1] <- r - 1
+        pnn <- df[r-1,3]
+        
+        # Linear model
+        
+        df[r,3] <- round(pnn + k * r + b, 1)
+
+        # Refined by finding max approximation
+        #df[r,3] <- round(pnn + k * (M - pnn) * pnn, 1)
+
+      }
+      
+      # Need to create new data frame with new predicted value
+      demosnapshot_MODEL[i,c] <- df[6,3]
+      
+  }
+  demosnapshot_MODEL[i,1] <- DBN
+  demosnapshot_MODEL[i,2] <- snapshot_5n_SAT[snapshot_5n_SAT$DBN == DBN, 2][1]
+  demosnapshot_MODEL[i,3] <-"2016-17"
+  
+  i <-  i + 1
+}
+
+```
+
+```{r}
+# Need to take care of constrains; that is...
+# a) No negative numbers, the minimum is 0 on all variables
+# b) The minimum percentage is 0 and maximum percentage is 100
+
+demosnapshot_MODEL$Total.Enrollment <- round(demosnapshot_MODEL$Total.Enrollment,0)
+demosnapshot_MODEL$Total.Enrollment[demosnapshot_MODEL$Total.Enrollment < 0] <- 0
+
+
+for (c in 5:14){
+     demosnapshot_MODEL[,c][demosnapshot_MODEL[,c] < 0] <- 0 
+     demosnapshot_MODEL[,c][demosnapshot_MODEL[,c] > 100] <- 100 
+}
+      
+```
+
+
+# Prediction process for SAT 2016-17
+
+```{r}
+# Running linear models on predicted data
+predict_R_SAT <- predict(Rglm.SAT_STEP, newdata=demosnapshot_MODEL, type="response")
+predict_W_SAT <- predict(Wglm.SAT_STEP, newdata=demosnapshot_MODEL, type="response")
+predict_M_SAT <- predict(Mglm.SAT_STEP, newdata=demosnapshot_MODEL, type="response")
+
+```
+
+```{r}
+par(mfrow=c(3,2))
+hist(predict_R_SAT)
+hist(SAT$SAT.Critical.Reading.Avg..Score)
+hist(predict_W_SAT)
+hist(SAT$SAT.Writing.Avg..Score)
+hist(predict_M_SAT)
+hist(SAT$SAT.Math.Avg..Score)
+
+```
+
+
+\newpage
+# CONCLUSIONS
+
+In this section we need to add conclusions...
+
+
+
+
+\newpage
+# REFERENCES
+
+Need to add references...
+
